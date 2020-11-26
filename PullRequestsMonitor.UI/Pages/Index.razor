@@ -209,7 +209,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(search_string))
             return true;
-        if (element.Title.Contains(search_string))
+        if (element.Title.Contains(search_string, StringComparison.InvariantCultureIgnoreCase))
             return true;
         return false;
     }
