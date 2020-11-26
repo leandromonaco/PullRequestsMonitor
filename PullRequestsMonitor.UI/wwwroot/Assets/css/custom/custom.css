@@ -10,6 +10,14 @@ NOTE:
 PLACE HERE YOUR OWN CSS CODES AND IF NEEDED, OVERRIDE THE STYLES FROM THE OTHER STYLESHEETS.
 WE WILL RELEASE FUTURE UPDATES SO IN ORDER TO NOT OVERWRITE YOUR STYLES IT'S BETTER LIKE THIS.  */
 
+
+
+@media screen and (min-width: 480px) {
+	.mud-table {
+		width: 96vw;
+	}
+}
+
 #blazor-error-ui {
 	background: lightyellow;
 	bottom: 0;

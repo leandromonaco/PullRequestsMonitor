@@ -6,6 +6,7 @@
 @using System.Text.RegularExpressions
 @using PullRequestsMonitor.UI.Shared.Components.PullRequests
 @using Microsoft.Extensions.Configuration
+@using PullRequestsMonitor.UI.Model
 
 @inject NavigationManager navManager
 @inject IJSRuntime JSRuntime
@@ -53,45 +54,49 @@
     </div>
 }
 
-@if (_pendingPullRequestsFiltered != null)
+@if (_pendingPullRequestsFiltered != null && _pendingPullRequestsAll.Count > 0)
 {
     <div class="card">
         <div class="card-content">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Repository</th>
-                        <th>Branch</th>
-                        <th>Title</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var pullRequest in _pendingPullRequestsFiltered)
-                    {
-                        <tr>
-                            <td>
-                                @if (_teamRegex.Match(pullRequest.SourceRefName).Success)
-                                {
-                                    <p>@_teamRegex.Match(pullRequest.SourceRefName).Value.Replace("feature/", "")</p>
-                                }
-                                else
-                                {
-                                    <p>Unknown</p>
-                                }
-                            </td>
-                            <td nowrap>@pullRequest.Repository.Name</td>
-                            <td nowrap>@pullRequest.TargetRefName.Replace("refs/heads/", "")</td>
-                            <td nowrap><a href="@_configuration["AzDevOps:BaseUrl"]/@pullRequest.Repository.Project.Name/_git/@pullRequest.Repository.Name/pullrequest/@pullRequest.PullRequestId" target="_blank">@pullRequest.PullRequestId</a> @pullRequest.Title</td>
-                            <td nowrap>
-                                <PullRequestStatusComponent Reviewers="@pullRequest.Reviewers"></PullRequestStatusComponent>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            <MudTable FixedHeader="true" RowsPerPage="100" Items="_pendingPullRequestsFiltered" Dense="@dense" Hover="@hover" Filter="new Func<PullRequest,bool>(FilterFunc)" @bind-SelectedItem="@selected_item" SortLabel="Sort By">
+                <ToolBarContent>
+                    <MudTextField @bind-Value="@search_string" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <ColGroup>
+                    <col style="width:100px;"/>
+                    <col style="width:10%;" />
+                    <col style="width:100px;" />
+                    <col style="width:10%;" />
+                    <col style="width:100px;" />
+                    <col style="width:80%;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.PullRequestId)">ID</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.Reviewers.First())">Status</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.Team)">Team</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.Repository.Name)">Repository</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.TargetRefName)">Target</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<PullRequest, object>(x=>x.Title)">Title</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID"><a href="@_configuration["AzDevOps:BaseUrl"]/@context.Repository.Project.Name/_git/@context.Repository.Name/pullrequest/@context.PullRequestId" target="_blank">@context.PullRequestId</a></MudTd>
+                    <MudTd DataLabel="Reviewers"> <PullRequestStatusComponent Reviewers="@context.Reviewers"></PullRequestStatusComponent></MudTd>
+                    <MudTd DataLabel="Team">@context.Team</MudTd>
+                    <MudTd DataLabel="Repository">@context.Repository.Name</MudTd>
+                    <MudTd DataLabel="Target">@context.TargetRefName</MudTd>
+                    <MudTd DataLabel="Title">@context.Title</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
         </div>
     </div>
+  
+}
+else
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
 }
 
 
@@ -112,9 +117,16 @@
     List<string> _repositories;
     List<string> _branches;
 
-    private Regex _teamRegex = new Regex("feature/([A-Z])\\w+");
-    private List<AzDevOpsPullRequest> _pendingPullRequestsFiltered = new List<AzDevOpsPullRequest>();
-    private List<AzDevOpsPullRequest> _pendingPullRequestsAll = new List<AzDevOpsPullRequest>();
+    private List<PullRequest> _pendingPullRequestsFiltered = new List<PullRequest>();
+    private List<PullRequest> _pendingPullRequestsAll = new List<PullRequest>();
+
+    //MudBlazor
+    bool dense = false;
+    bool hover = true;
+    bool fixed_header = false;
+    string search_string = "";
+    PullRequest selected_item = null;
+    HashSet<PullRequest> selected_items = new HashSet<PullRequest>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,7 +164,7 @@
 
         if (!_selectedTeam.Equals("Team"))
         {
-            _pendingPullRequestsFiltered = _pendingPullRequestsFiltered.Where(pr => _teamRegex.Match(pr.SourceRefName).Value.Replace("feature/", "").Equals(_selectedTeam)).ToList();
+            _pendingPullRequestsFiltered = _pendingPullRequestsFiltered.Where(pr => pr.Team.Equals(_selectedTeam)).ToList();
         }
 
         if (!_selectedRepository.Equals("Repository"))
@@ -182,7 +194,7 @@
         _repositories = new List<string>();
         _branches = new List<string>();
 
-        _teams = _pendingPullRequestsAll.Select(pr => _teamRegex.Match(pr.SourceRefName).Value.Replace("feature/", "")).Distinct().ToList();
+        _teams = _pendingPullRequestsAll.Select(pr => pr.Team).Distinct().ToList();
         _repositories = _pendingPullRequestsAll.Select(pr => pr.Repository.Name).Distinct().ToList();
         _branches = _pendingPullRequestsAll.Select(pr => pr.TargetRefName).Distinct().ToList();
 
@@ -191,6 +203,15 @@
         await JSRuntime.InvokeAsync<string>("ResetDropDownList", ddlBranch);
 
         StateHasChanged();
+    }
+
+    bool FilterFunc(PullRequest element)
+    {
+        if (string.IsNullOrWhiteSpace(search_string))
+            return true;
+        if (element.Title.Contains(search_string))
+            return true;
+        return false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -204,10 +225,11 @@
                                         .AddEnvironmentVariables()
                                         .Build();
 
-            _azDevOpsRepository = new AzDevOpsRepository(_configuration["AzDevOps:Url"], _configuration["AzDevOps:Key"]);
+            _azDevOpsRepository = new AzDevOpsRepository(_configuration["AzDevOps:Url"], _configuration["AzDevOps:Key"], AutomationToolkit.Common.Http.AuthenticationType.DefaultCredentials);
 
-            var pullRequests = await _azDevOpsRepository.GetPullRequestsAsync();
-            _pendingPullRequestsAll.AddRange(pullRequests);
+            var pullRequests = await _azDevOpsRepository.GetPullRequestsAsync(false, 1000);
+
+            pullRequests.ForEach(pr => _pendingPullRequestsAll.Add(Mapper.Map(pr)));
 
             ResetFilters();
 
@@ -220,7 +242,5 @@
         //    pr.Threads = pr.Threads.Where(t => t.Comments.Count(c => c.CommentType.Equals("text")) > 0).ToList();
         //    pr.Threads = pr.Threads.Where(t => t.Status.Equals("active")).ToList();
         //}
-
-
     }
 }

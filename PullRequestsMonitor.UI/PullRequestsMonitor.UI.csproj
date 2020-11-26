@@ -1448,9 +1448,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutomationToolkit.AzDevOps" Version="1.0.1" />
+    <PackageReference Include="AutoMapper" Version="10.1.1" />
+    <PackageReference Include="AutomationToolkit.AzDevOps" Version="1.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="3.1.0" />
+    <PackageReference Include="MudBlazor" Version="1.1.4" />
     <PackageReference Include="System.DirectoryServices.AccountManagement" Version="4.7.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.9" />
   </ItemGroup>
